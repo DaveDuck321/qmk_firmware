@@ -45,6 +45,7 @@ int tp_buttons;
 
 #if defined(RETRO_TAPPING) || defined(RETRO_TAPPING_PER_KEY)
 int retro_tapping_counter = 0;
+uint16_t retro_tapping_start = 0;
 #endif
 
 #ifdef FAUXCLICKY_ENABLE
@@ -76,7 +77,8 @@ void action_exec(keyevent_t event) {
         debug_event(event);
         dprintln();
 #if defined(RETRO_TAPPING) || defined(RETRO_TAPPING_PER_KEY)
-        retro_tapping_counter++;
+        if(event.pressed)
+            retro_tapping_counter++;
 #endif
     }
 
@@ -731,12 +733,14 @@ void process_action(keyrecord_t *record, action_t action) {
 #ifndef NO_ACTION_TAPPING
 #    if defined(RETRO_TAPPING) || defined(RETRO_TAPPING_PER_KEY)
     if (!is_tap_action(action)) {
-        retro_tapping_counter = 0;
+        if (event.pressed)
+            retro_tapping_counter = 0;
     } else {
         if (event.pressed) {
             if (tap_count > 0) {
                 retro_tapping_counter = 0;
             }
+            retro_tapping_start = event.time;
         } else {
             if (tap_count > 0) {
                 retro_tapping_counter = 0;
@@ -745,7 +749,10 @@ void process_action(keyrecord_t *record, action_t action) {
 #        ifdef RETRO_TAPPING_PER_KEY
                     get_retro_tapping(get_event_keycode(record->event, false), record) &&
 #        endif
-                    retro_tapping_counter == 2) {
+#        ifdef RETRO_TAPPING_MAX_TIME
+                    RETRO_TAPPING_MAX_TIME >= event.time - retro_tapping_start &&
+#        endif
+                    (retro_tapping_counter == 1 || retro_tapping_counter == 2)) {
                     tap_code(action.layer_tap.code);
                 }
                 retro_tapping_counter = 0;
